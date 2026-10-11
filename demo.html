@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inbox Triage: HVAC email sorting demo</title>
+<style>
+:root{--bg:#0b0f17;--panel:#121826;--panel2:#171f30;--line:#232d42;--text:#e6ebf5;--mute:#8d98b0;
+--red:#ff5a5f;--redbg:rgba(255,90,95,.12);--amber:#ffbe3d;--amberbg:rgba(255,190,61,.12);--green:#3ecf8e;--greenbg:rgba(62,207,142,.10);--blue:#6ea8ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#16213a 0,transparent 60%),var(--bg);color:var(--text);
+font:14px/1.45 Inter,"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1560px;margin:0 auto;padding:18px 28px 10px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand h1{margin:0;font-size:22px;letter-spacing:-.01em}.brand h1 span{color:var(--mute);font-weight:500}
+.logo{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#ff5a5f,#ffbe3d);margin-right:10px;vertical-align:-9px;font-size:18px}
+.mode{color:var(--mute);font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--panel)}
+.mode b{color:var(--text);font-weight:600}
+.summary{margin:14px 0 12px;display:grid;grid-template-columns:1.5fr repeat(4,1fr);gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 16px}
+.stat .n{font-size:26px;font-weight:700;letter-spacing:-.02em}.stat .l{color:var(--mute);font-size:12.5px}
+.stat.big{background:linear-gradient(135deg,#17213a,#121826)}.stat.big .n{font-size:19px;line-height:1.35;font-weight:650}
+.stat.u .n{color:var(--red)}.stat.s .n{color:var(--amber)}.stat.o .n{color:var(--green)}.stat.r .n{color:var(--blue)}
+.rule{display:flex;gap:10px;align-items:center;background:var(--amberbg);border:1px solid rgba(255,190,61,.35);color:#ffe3a6;border-radius:12px;padding:8px 14px;font-size:13.5px;margin-bottom:10px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tab{appearance:none;border:0;background:none;color:var(--mute);font:inherit;font-weight:600;padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer}
+.tab:hover{color:var(--text)}.tab.on{color:var(--text);border-color:var(--blue)}
+.tab .k{display:inline-block;min-width:22px;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--panel2);font-size:12px}
+.layout{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+.board.single{grid-template-columns:1fr}.board.single .col{display:none}.board.single .col.show{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}
+.board.single .col.show header{grid-column:1/-1}
+.col{background:rgba(18,24,38,.6);border:1px solid var(--line);border-radius:16px;padding:12px}
+.col header{padding:2px 4px 10px}.col h2{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}.col small{color:var(--mute)}
+.count{margin-left:auto;background:var(--panel2);border-radius:999px;padding:1px 9px;font-size:12.5px;color:var(--mute)}
+.dot{width:9px;height:9px;border-radius:50%}.dot.urgent{background:var(--red);box-shadow:0 0 10px var(--red)}.dot.unsure{background:var(--amber)}.dot.normal{background:var(--green)}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px}
+.board.single .card{margin-bottom:0}
+.card.urgent{border-left-color:var(--red);background:linear-gradient(90deg,var(--redbg),var(--panel) 40%)}
+.card.unsure{border-left-color:var(--amber);background:linear-gradient(90deg,var(--amberbg),var(--panel) 40%)}
+.card.normal{border-left-color:rgba(62,207,142,.55)}
+.top{display:flex;justify-content:space-between;align-items:center}.time{color:var(--mute);font-size:12px}
+.badge{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:6px}
+.badge.urgent{color:var(--red);background:var(--redbg)}.badge.unsure{color:var(--amber);background:var(--amberbg)}.badge.normal{color:var(--green);background:var(--greenbg)}
+.card h3{margin:7px 0 2px;font-size:14.5px;line-height:1.3}
+.from{font-size:12.5px;color:#c3cbe0}.from span{color:var(--mute)}
+.snippet{color:var(--mute);font-size:12.5px;margin:5px 0 7px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.board.single .snippet{-webkit-line-clamp:5}
+.board:not(.single) .full,.board:not(.single) details{display:none}
+.why{font-size:13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.card.unsure .why{border-color:rgba(255,190,61,.35);color:#ffe7b3}.card.urgent .why{border-color:rgba(255,90,95,.35);color:#ffd0d1}
+.conf{display:flex;align-items:center;gap:8px;margin:7px 0 7px;font-size:12px;color:var(--mute)}
+.bar{flex:1;height:6px;background:#0d1320;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;border-radius:9px}
+.urgent .bar i{background:var(--red)}.unsure .bar i{background:var(--amber)}.normal .bar i{background:var(--green)}.conf b{color:var(--text);min-width:34px;text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--panel2);color:#b8c2d9;border:1px solid var(--line)}
+.chip em{color:var(--mute);font-style:normal}.chip.ping{color:#cfe0ff}.chip.noreply{color:var(--mute)}
+details{margin-top:8px}summary{cursor:pointer;color:var(--blue);font-size:12px}
+pre{font:11px/1.4 "JetBrains Mono","IBM Plex Mono",monospace;background:#0a0e16;border:1px solid var(--line);border-radius:8px;padding:9px;overflow:auto;max-height:240px;color:#b9c4dc}
+.phone{position:sticky;top:16px;background:#05070b;border:1px solid #2a3348;border-radius:38px;padding:14px;box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 0 0 2px #10151f}
+.screen{border-radius:28px;background:linear-gradient(180deg,#1b2440,#0e1322 55%);padding:14px 12px 16px;min-height:600px}
+.notch{width:110px;height:24px;background:#05070b;border-radius:0 0 16px 16px;margin:-14px auto 8px}
+.clock{text-align:center;font-size:44px;font-weight:300;letter-spacing:-.02em;margin:4px 0 0}.date{text-align:center;color:#aab4cc;font-size:13px;margin-bottom:12px}
+.ptitle{display:flex;justify-content:space-between;font-size:12px;color:#aab4cc;margin:0 4px 8px}
+.note{background:rgba(255,255,255,.09);backdrop-filter:blur(10px);border-radius:16px;padding:10px 12px;margin-bottom:8px;border-left:3px solid transparent}
+.note.urgent{border-left-color:var(--red)}.note.unsure{border-left-color:var(--amber)}
+.nhead{display:flex;gap:7px;align-items:center;font-size:11.5px;color:#c9d1e4}.nhead span:last-child{margin-left:auto;color:#9aa5bf}
+.app{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;background:#4a154b;color:#fff;font-weight:800;font-size:12px}
+.ntitle{font-weight:700;font-size:13px;margin-top:5px}.nsubj{font-size:13px;margin-top:1px}.nfrom{font-size:12px;color:#aab4cc}
+.nwhy{font-size:11.5px;color:#9aa5bf;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pfoot{text-align:center;font-size:11.5px;color:#7f8aa3;margin-top:10px}
+footer{max-width:1560px;margin:20px auto 0;padding:16px 28px 28px;color:var(--mute);font-size:13px;border-top:1px solid var(--line);display:flex;justify-content:space-between}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <h1><span class="logo">✉</span>Inbox Triage <span>· HVAC shop email sorting</span></h1>
+    <div class="mode">Mode: <b>Rules only (AI double-check off for this demo)</b> · No real Gmail or Slack calls</div>
+  </div>
+  <div class="summary" id="summary">
+    <div class="stat big"><div class="n">25 emails: 3 urgent, 4 not sure, 18 normal; 0 replies sent.</div><div class="l">One morning's inbox (sample emails)</div></div>
+    <div class="stat u"><div class="n">3</div><div class="l">Urgent: phone buzzes now</div></div>
+    <div class="stat s"><div class="n">4</div><div class="l">Not sure: flagged for a person</div></div>
+    <div class="stat o"><div class="n">18</div><div class="l">Normal: labeled, no ping</div></div>
+    <div class="stat r"><div class="n">0</div><div class="l">Replies sent (it never replies)</div></div>
+  </div>
+  <div class="rule">🟡 <span><b>The "tell me when it doesn't know" rule:</b> weak, mixed, or missing signals go to <b>Not sure</b> and still ping your phone. They never get quietly filed as Normal.</span></div>
+  <nav class="tabs">
+    <button class="tab on" data-tab="all">All three<span class="k">25</span></button>
+    <button class="tab" data-tab="urgent">Urgent<span class="k">3</span></button>
+    <button class="tab" data-tab="unsure">Not sure<span class="k">4</span></button>
+    <button class="tab" data-tab="normal">Normal<span class="k">18</span></button>
+  </nav>
+  <div class="layout">
+    <main class="board" id="board"><section class="col col-urgent" data-col="urgent">
+  <header><h2><span class="dot urgent"></span>Urgent<span class="count">3</span></h2><small>Phone buzzes now</small></header>
+  
+<article class="card urgent" id="mail-1" data-cat="urgent">
+  <div class="top"><span class="badge urgent">Urgent</span><span class="time">Mon 7:12 AM</span></div>
+  <h3>Rooftop unit DOWN - restaurant opens at 11</h3>
+  <div class="from">Marco Bellini <span>&lt;marco@trattoriabellini.example.com&gt;</span></div>
+  <p class="snippet">Our rooftop unit over the kitchen is down. No cooling at all and it&#x27;s already 88 inside. We open at 11 and the health inspector says we can&#x27;t run the line over 90. This is the commercial account on Harbor St. Please send someone ASAP. Call me at 555-0142.</p>
+  <div class="why"><b>Why:</b> Strong urgent signs: no cooling, unit down, commercial account, asks for fast help.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:98%"></i></div><b>98%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/URGENT</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;URGENT email: Rooftop unit DOWN - restaurant opens at 11 (from Marco Bellini)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:rotating_light: *URGENT email*\n*Rooftop unit DOWN - restaurant opens at 11*\nFrom: Marco Bellini · Mon 7:12 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Strong urgent signs: no cooling, unit down, commercial account, asks for fast help.  ·  Confidence: 98%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+<article class="card urgent" id="mail-2" data-cat="urgent">
+  <div class="top"><span class="badge urgent">Urgent</span><span class="time">Mon 6:48 AM</span></div>
+  <h3>No heat at my mother&#x27;s house</h3>
+  <div class="from">Linda Okafor <span>&lt;linda.okafor@example.com&gt;</span></div>
+  <p class="snippet">Hello, my mother is 84 and lives alone at 22 Birch Lane. Her furnace stopped sometime overnight and there is no heat. It is 20 degrees out and the house is at 54 and dropping. I am two hours away. Can someone get there this morning? My number is 555-0187.</p>
+  <div class="why"><b>Why:</b> Strong urgent signs: no heat, freezing weather, vulnerable person, asks for fast help.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:98%"></i></div><b>98%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/URGENT</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;URGENT email: No heat at my mother&#x27;s house (from Linda Okafor)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:rotating_light: *URGENT email*\n*No heat at my mother&#x27;s house*\nFrom: Linda Okafor · Mon 6:48 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Strong urgent signs: no heat, freezing weather, vulnerable person, asks for fast help.  ·  Confidence: 98%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+<article class="card urgent" id="mail-3" data-cat="urgent">
+  <div class="top"><span class="badge urgent">Urgent</span><span class="time">Mon 8:05 AM</span></div>
+  <h3>Third time - cancelling my maintenance plan</h3>
+  <div class="from">Gary Whitfield <span>&lt;gwhitfield@example.com&gt;</span></div>
+  <p class="snippet">This is the third time your tech has been out for the same problem and it is STILL not fixed. I am done. I want to cancel my maintenance plan and I want a refund for this year. If I don&#x27;t hear back today I&#x27;m leaving a review and calling my credit card company.</p>
+  <div class="why"><b>Why:</b> Strong urgent signs: wants to cancel, money dispute, threatens a bad review, angry repeat customer.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:95%"></i></div><b>95%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/URGENT</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;URGENT email: Third time - cancelling my maintenance plan (from Gary Whitfield)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:rotating_light: *URGENT email*\n*Third time - cancelling my maintenance plan*\nFrom: Gary Whitfield · Mon 8:05 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Strong urgent signs: wants to cancel, money dispute, threatens a bad review, angry repeat customer.  ·  Confidence: 95%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+</section><section class="col col-unsure" data-col="unsure">
+  <header><h2><span class="dot unsure"></span>Not sure<span class="count">4</span></h2><small>Phone buzzes: please look</small></header>
+  
+<article class="card unsure" id="mail-4" data-cat="unsure">
+  <div class="top"><span class="badge unsure">Not sure</span><span class="time">Mon 9:20 AM</span></div>
+  <h3>weird noise</h3>
+  <div class="from">Ruth Delgado <span>&lt;ruthd@example.com&gt;</span></div>
+  <p class="snippet">Hi, the unit is making a weird noise, kind of a rattle when it kicks on. Still working I think. Call when you can. Ruth</p>
+  <div class="why"><b>Why:</b> Can&#x27;t tell how serious this is: a noise, unclear how bad, asks for a call but doesn&#x27;t say why.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:40%"></i></div><b>40%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Not sure - please look</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;Not sure - please look: weird noise (from Ruth Delgado)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:large_yellow_circle: *Not sure - please look*\n*weird noise*\nFrom: Ruth Delgado · Mon 9:20 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Can&#x27;t tell how serious this is: a noise, unclear how bad, asks for a call but doesn&#x27;t say why.  ·  Confidence: 40%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+<article class="card unsure" id="mail-5" data-cat="unsure">
+  <div class="top"><span class="badge unsure">Not sure</span><span class="time">Mon 9:41 AM</span></div>
+  <h3>Our account</h3>
+  <div class="from">Tom Brandt <span>&lt;tbrandt@northgateproperties.example.com&gt;</span></div>
+  <p class="snippet">Hi, we need to talk about our account. Please have someone call me. - Tom, Northgate Properties</p>
+  <div class="why"><b>Why:</b> Can&#x27;t tell how serious this is: asks for a call but doesn&#x27;t say why, wants to talk about the account, reason not given.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:40%"></i></div><b>40%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Not sure - please look</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;Not sure - please look: Our account (from Tom Brandt)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:large_yellow_circle: *Not sure - please look*\n*Our account*\nFrom: Tom Brandt · Mon 9:41 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Can&#x27;t tell how serious this is: asks for a call but doesn&#x27;t say why, wants to talk about the account, reason not given.  ·  Confidence: 40%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+<article class="card unsure" id="mail-6" data-cat="unsure">
+  <div class="top"><span class="badge unsure">Not sure</span><span class="time">Mon 10:02 AM</span></div>
+  <h3>Fwd: Fwd: RE: unit 4B</h3>
+  <div class="from">Denise (office) <span>&lt;denise@example.com&gt;</span></div>
+  <p class="snippet">---------- Forwarded message ---------<br>From: Building Manager &lt;mgr@lakeviewapts.example.com&gt;<br>Subject: RE: unit 4B<br><br>See below from the tenant. <br><br>&gt; it&#x27;s doing the thing again<br><br>(no other message)</p>
+  <div class="why"><b>Why:</b> Can&#x27;t tell how serious this is: refers to an earlier problem without details, forwarded thread.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:45%"></i></div><b>45%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Not sure - please look</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;Not sure - please look: Fwd: Fwd: RE: unit 4B (from Denise (office))&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:large_yellow_circle: *Not sure - please look*\n*Fwd: Fwd: RE: unit 4B*\nFrom: Denise (office) · Mon 10:02 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Can&#x27;t tell how serious this is: refers to an earlier problem without details, forwarded thread.  ·  Confidence: 45%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+<article class="card unsure" id="mail-7" data-cat="unsure">
+  <div class="top"><span class="badge unsure">Not sure</span><span class="time">Mon 10:30 AM</span></div>
+  <h3>Smell near the furnace?</h3>
+  <div class="from">Priya Shah <span>&lt;priya.shah@example.com&gt;</span></div>
+  <p class="snippet">Not sure if this is anything but there&#x27;s a funny smell near the furnace in the basement since last night. Maybe dust burning off? Heat is working fine. Should I be worried?</p>
+  <div class="why"><b>Why:</b> Can&#x27;t tell how serious this is: a smell, could be nothing or could be a safety issue, sender is unsure themselves.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:35%"></i></div><b>35%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Not sure - please look</span><span class="chip ping">🔔 Slack ping <em>(preview)</em></span><span class="chip noreply full">Reply sent: none</span></div>
+  <details><summary>Slack message it would send</summary><pre>{
+  &quot;text&quot;: &quot;Not sure - please look: Smell near the furnace? (from Priya Shah)&quot;,
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;:large_yellow_circle: *Not sure - please look*\n*Smell near the furnace?*\nFrom: Priya Shah · Mon 10:30 AM&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;context&quot;,
+      &quot;elements&quot;: [
+        {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;Why: Can&#x27;t tell how serious this is: a smell, could be nothing or could be a safety issue, sender is unsure themselves.  ·  Confidence: 35%&quot;
+        }
+      ]
+    }
+  ]
+}</pre></details>
+</article>
+</section><section class="col col-normal" data-col="normal">
+  <header><h2><span class="dot normal"></span>Normal<span class="count">18</span></h2><small>Labeled, no ping</small></header>
+  
+<article class="card normal" id="mail-8" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 5:00 AM</span></div>
+  <h3>FALL SALE: 15% off capacitors and contactors</h3>
+  <div class="from">ColdFront Supply <span>&lt;deals@coldfrontsupply.example.com&gt;</span></div>
+  <p class="snippet">Stock up before heating season! 15% off all capacitors, contactors and igniters through Friday. Use code FALL15 at checkout. Unsubscribe anytime.</p>
+  <div class="why"><b>Why:</b> Routine: promotion. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-9" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 6:15 AM</span></div>
+  <h3>Order #48213 shipped</h3>
+  <div class="from">Midwest HVAC Distributors <span>&lt;orders@midwesthvac.example.com&gt;</span></div>
+  <p class="snippet">Your order #48213 (2 x 16x25x1 filters case, 1 x flame sensor) has shipped and will arrive Wednesday. Tracking: 1Z999AA10123456784.</p>
+  <div class="why"><b>Why:</b> Routine: shipping notice. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-10" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 7:55 AM</span></div>
+  <h3>Reschedule tune-up</h3>
+  <div class="from">Karen Liu <span>&lt;karen.liu@example.com&gt;</span></div>
+  <p class="snippet">Hi, can we move my furnace tune-up from Thursday to next Tuesday afternoon? Thanks, Karen</p>
+  <div class="why"><b>Why:</b> Routine: scheduling. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-11" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 8:30 AM</span></div>
+  <h3>Question about invoice from March</h3>
+  <div class="from">Bob Nakamura <span>&lt;bob.n@example.com&gt;</span></div>
+  <p class="snippet">Hi, I was going through my files and I have an invoice from back in March, #20931, for $189. I think I paid it by check but wanted to confirm. No rush.</p>
+  <div class="why"><b>Why:</b> Routine: billing paperwork, sender says it isn&#x27;t urgent. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:92%"></i></div><b>92%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-12" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 4:30 AM</span></div>
+  <h3>This week: refrigerant rule changes explained</h3>
+  <div class="from">HVAC Pro Weekly <span>&lt;news@hvacproweekly.example.com&gt;</span></div>
+  <p class="snippet">In this issue: what the new refrigerant rules mean for your shop, 5 ways to cut truck rolls, and a look at heat pump rebates. Read online.</p>
+  <div class="why"><b>Why:</b> Routine: newsletter. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-13" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 11:10 AM</span></div>
+  <h3>Thanks!</h3>
+  <div class="from">Steve Ortiz <span>&lt;steve.ortiz@example.com&gt;</span></div>
+  <p class="snippet">Just wanted to say Mike did a great job on our AC install last week. Very clean, explained everything. Thanks!</p>
+  <div class="why"><b>Why:</b> Routine: thank-you note. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-14" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 3:12 AM</span></div>
+  <h3>Your monthly Google Workspace invoice is available</h3>
+  <div class="from">Google Workspace <span>&lt;workspace-noreply@example.com&gt;</span></div>
+  <p class="snippet">Your invoice for September is available. Amount: $132.00. This will be charged automatically to the card on file.</p>
+  <div class="why"><b>Why:</b> Routine: billing paperwork. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-15" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 11:45 AM</span></div>
+  <h3>Quote for new AC next spring</h3>
+  <div class="from">Ana Ruiz <span>&lt;ana.ruiz@example.com&gt;</span></div>
+  <p class="snippet">Hi, we&#x27;re thinking about replacing our 18-year-old AC next spring. No rush, but could someone come out sometime in the next few weeks to give us a quote?</p>
+  <div class="why"><b>Why:</b> Routine: sender says it isn&#x27;t urgent, sales question. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:92%"></i></div><b>92%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-16" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 2:00 AM</span></div>
+  <h3>Weekly fuel summary</h3>
+  <div class="from">Fleet Fuel Card <span>&lt;alerts@fleetfuel.example.com&gt;</span></div>
+  <p class="snippet">Your fleet used 212 gallons last week across 6 vehicles. View the full report in your dashboard.</p>
+  <div class="why"><b>Why:</b> Routine: automated report. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-17" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 12:20 PM</span></div>
+  <h3>Thermostat question</h3>
+  <div class="from">Jason Park <span>&lt;jpark@example.com&gt;</span></div>
+  <p class="snippet">How do I set a schedule on the new thermostat you installed? I can&#x27;t find it in the menu. Not urgent, whenever someone has a minute.</p>
+  <div class="why"><b>Why:</b> Routine: sender says it isn&#x27;t urgent, simple how-to question. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:92%"></i></div><b>92%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-18" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 9:00 AM</span></div>
+  <h3>Business mixer Thursday</h3>
+  <div class="from">Chamber of Commerce <span>&lt;events@chamber.example.com&gt;</span></div>
+  <p class="snippet">Join local business owners Thursday at 5:30 PM at the Riverside Hall for networking and appetizers. RSVP by Wednesday.</p>
+  <div class="why"><b>Why:</b> Routine: event / marketing. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-19" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 8:00 AM</span></div>
+  <h3>Statement for September</h3>
+  <div class="from">Allied Parts <span>&lt;billing@alliedparts.example.com&gt;</span></div>
+  <p class="snippet">Attached is your September statement. Balance due: $2,340.17 by October 30. Thank you for your business.</p>
+  <div class="why"><b>Why:</b> Routine: billing paperwork. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-20" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 7:30 AM</span></div>
+  <h3>Running late</h3>
+  <div class="from">Mike Torres (tech) <span>&lt;mike@example.com&gt;</span></div>
+  <p class="snippet">Running about 20 min behind for the 8:00, traffic on 94. Already texted the customer.</p>
+  <div class="why"><b>Why:</b> Routine: internal crew update. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-21" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 1:05 PM</span></div>
+  <h3>Duct cleaning?</h3>
+  <div class="from">Sarah Kim <span>&lt;sarah.kim@example.com&gt;</span></div>
+  <p class="snippet">Do you guys do duct cleaning? If so what does it cost for a 1,800 sq ft house? Thanks.</p>
+  <div class="why"><b>Why:</b> Routine: sales question. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-22" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 5:45 AM</span></div>
+  <h3>Pre-approved: up to $75,000 for new vans</h3>
+  <div class="from">Equipment Finance Co <span>&lt;offers@equipfinance.example.com&gt;</span></div>
+  <p class="snippet">Your business is pre-approved for equipment financing up to $75,000. Rates as low as 6.9%. Apply in 5 minutes.</p>
+  <div class="why"><b>Why:</b> Routine: event / marketing. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-23" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 1:40 PM</span></div>
+  <h3>Confirming Wednesday</h3>
+  <div class="from">Dan Hughes <span>&lt;dan.hughes@example.com&gt;</span></div>
+  <p class="snippet">Just confirming the technician is still coming Wednesday between 8 and 10 for the water heater check. Gate code is 4471.</p>
+  <div class="why"><b>Why:</b> Routine: promotion, scheduling. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:92%"></i></div><b>92%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-24" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 6:00 AM</span></div>
+  <h3>New online course: heat pump diagnostics</h3>
+  <div class="from">ProTech Training <span>&lt;training@hvactraining.example.com&gt;</span></div>
+  <p class="snippet">Earn 4 CE hours with our new self-paced course on heat pump diagnostics. Enroll today and save 20%.</p>
+  <div class="why"><b>Why:</b> Routine: promotion, event / marketing. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:92%"></i></div><b>92%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+<article class="card normal" id="mail-25" data-cat="normal">
+  <div class="top"><span class="badge normal">Normal</span><span class="time">Mon 2:15 PM</span></div>
+  <h3>Filter size</h3>
+  <div class="from">Emily Carter <span>&lt;emily.carter@example.com&gt;</span></div>
+  <p class="snippet">What size filter does our furnace take? You installed it two years ago. We&#x27;re at 14 Oak Court.</p>
+  <div class="why"><b>Why:</b> Routine: simple how-to question. No urgent signs.</div>
+  <div class="conf"><span>Confidence</span><div class="bar"><i style="width:76%"></i></div><b>76%</b></div>
+  <div class="chips"><span class="chip label"><span class="full">Gmail label: </span>🏷 Triage/Normal</span><span class="chip quiet">No ping</span><span class="chip noreply full">Reply sent: none</span></div>
+  
+</article>
+</section></main>
+    <aside class="phone" id="alerts"><div class="screen"><div class="notch"></div>
+      <div class="clock">10:31</div><div class="date">Monday · 7 Slack alerts</div>
+      <div class="ptitle"><span>Notifications</span><span>3 urgent · 4 not sure</span></div>
+      <div class="note urgent">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 7:12 AM</span></div>
+  <div class="ntitle">🚨 URGENT email</div>
+  <div class="nsubj">Rooftop unit DOWN - restaurant opens at 11</div>
+  <div class="nfrom">From Marco Bellini</div>
+  <div class="nwhy">Strong urgent signs: no cooling, unit down, commercial account, asks for fast help.</div>
+</div><div class="note urgent">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 6:48 AM</span></div>
+  <div class="ntitle">🚨 URGENT email</div>
+  <div class="nsubj">No heat at my mother&#x27;s house</div>
+  <div class="nfrom">From Linda Okafor</div>
+  <div class="nwhy">Strong urgent signs: no heat, freezing weather, vulnerable person, asks for fast help.</div>
+</div><div class="note urgent">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 8:05 AM</span></div>
+  <div class="ntitle">🚨 URGENT email</div>
+  <div class="nsubj">Third time - cancelling my maintenance plan</div>
+  <div class="nfrom">From Gary Whitfield</div>
+  <div class="nwhy">Strong urgent signs: wants to cancel, money dispute, threatens a bad review, angry repeat customer.</div>
+</div><div class="note unsure">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 9:20 AM</span></div>
+  <div class="ntitle">🟡 Not sure: please look</div>
+  <div class="nsubj">weird noise</div>
+  <div class="nfrom">From Ruth Delgado</div>
+  <div class="nwhy">Can&#x27;t tell how serious this is: a noise, unclear how bad, asks for a call but doesn&#x27;t say why.</div>
+</div><div class="note unsure">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 9:41 AM</span></div>
+  <div class="ntitle">🟡 Not sure: please look</div>
+  <div class="nsubj">Our account</div>
+  <div class="nfrom">From Tom Brandt</div>
+  <div class="nwhy">Can&#x27;t tell how serious this is: asks for a call but doesn&#x27;t say why, wants to talk about the account, reason not given.</div>
+</div><div class="note unsure">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 10:02 AM</span></div>
+  <div class="ntitle">🟡 Not sure: please look</div>
+  <div class="nsubj">Fwd: Fwd: RE: unit 4B</div>
+  <div class="nfrom">From Denise (office)</div>
+  <div class="nwhy">Can&#x27;t tell how serious this is: refers to an earlier problem without details, forwarded thread.</div>
+</div><div class="note unsure">
+  <div class="nhead"><span class="app">#</span><b>Slack</b><span>#email-alerts · 10:30 AM</span></div>
+  <div class="ntitle">🟡 Not sure: please look</div>
+  <div class="nsubj">Smell near the furnace?</div>
+  <div class="nfrom">From Priya Shah</div>
+  <div class="nwhy">Can&#x27;t tell how serious this is: a smell, could be nothing or could be a safety issue, sender is unsure themselves.</div>
+</div>
+      <div class="pfoot">Preview only. Nothing was sent to Slack.</div>
+    </div></aside>
+  </div>
+</div>
+<footer><span>Demo with sample emails. Sorts only, never replies.</span><span>Names, addresses and numbers are made up.</span></footer>
+<script>
+const board=document.getElementById('board');
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+  const k=t.dataset.tab;board.classList.toggle('single',k!=='all');
+  document.querySelectorAll('.col').forEach(c=>c.classList.toggle('show',c.dataset.col===k));
+}));
+</script>
+</body></html>
