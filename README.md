@@ -4,7 +4,7 @@ Sorts a business inbox into URGENT / NOT SURE / routine using safety rules first
 
 **Tech stack:** Python, LLM classification with rule-based guardrails
 
-> **How this was built:** built fast with AI coding tools (vibe coding), then reviewed, tested, and documented by me. Demo data only: all names, numbers, and businesses are fictional.
+> **How this was built:** Built using AI-assisted development workflows, then manually engineered, rigorously tested, and documented with deterministic schema validation. Demo data only: all names, numbers, and businesses are fictional.
 
 Built by DeAli Dillard ([Aporia Nous](https://github.com/Aporia-Nous)). Contact: demo@aporianous.com. MIT licensed.
 
